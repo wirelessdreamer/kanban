@@ -11,7 +11,13 @@ import type {
 	RuntimeWorkspaceStateResponse,
 } from "../core/api-contract";
 import { runtimeAgentIdSchema, runtimeClineReasoningEffortSchema } from "../core/api-contract";
-import { buildKanbanRuntimeUrl, getKanbanRuntimeOrigin, getRuntimeFetch } from "../core/runtime-endpoint";
+import {
+	buildKanbanRuntimeUrl,
+	getKanbanRuntimeOrigin,
+	getRuntimeFetch,
+	type ResolvedRuntimeConnection,
+	resolveRuntimeConnection,
+} from "../core/runtime-endpoint";
 import {
 	addTaskDependency,
 	addTaskToColumn,
