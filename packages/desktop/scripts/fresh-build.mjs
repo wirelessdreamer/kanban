@@ -122,6 +122,20 @@ if (oldRef !== newRef) {
 	console.log(`  kanban dep already correct: ${newRef}`);
 }
 
+// Nuke npm cache and lockfile to prevent stale tarball installs.
+// npm caches file: tarballs by version, so same-version rebuilds get
+// the old cached tarball instead of the fresh one on disk.
+const desktopLock = join(DESKTOP, "package-lock.json");
+if (existsSync(desktopLock)) {
+	console.log(`  rm ${desktopLock}`);
+	rmSync(desktopLock, { force: true });
+}
+const npmCacheDir = join(process.env.HOME || process.env.USERPROFILE || "", ".npm", "_cacache");
+if (existsSync(npmCacheDir)) {
+	console.log(`  rm -rf ${npmCacheDir}  (npm tarball cache)`);
+	rmSync(npmCacheDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 500 });
+}
+
 run("npm install", { cwd: DESKTOP });
 
 // Verify
