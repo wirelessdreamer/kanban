@@ -18,12 +18,7 @@ import {
 } from "../core/api-validation";
 import { saveWorkspaceState, WorkspaceStateConflictError } from "../state/workspace-state";
 import type { TerminalSessionManager } from "../terminal/session-manager";
-import {
-	createEmptyWorkspaceChangesResponse,
-	getWorkspaceChanges,
-	getWorkspaceChangesBetweenRefs,
-	getWorkspaceChangesFromRef,
-} from "../workspace/get-workspace-changes";
+import { createEmptyWorkspaceChangesResponse, getWorkspaceChanges } from "../workspace/get-workspace-changes";
 import { getCommitDiff, getGitLog, getGitRefs } from "../workspace/git-history";
 import { discardGitChanges, getGitSyncSummary, runGitCheckoutAction, runGitSyncAction } from "../workspace/git-sync";
 import { searchWorkspaceFiles } from "../workspace/search-workspace-files";
@@ -34,6 +29,7 @@ import {
 	resolveTaskCwd,
 } from "../workspace/task-worktree";
 import type { RuntimeTrpcContext } from "./app-router";
+import { loadLastTurnWorkspaceChanges } from "./last-turn-workspace-diff";
 
 export interface CreateWorkspaceApiDependencies {
 	ensureTerminalManagerForWorkspace: (workspaceId: string, repoPath: string) => Promise<TerminalSessionManager>;
@@ -299,22 +295,14 @@ export function createWorkspaceApi(deps: CreateWorkspaceApiDependencies): Runtim
 					terminalManager.getSummary(normalizedInput.taskId),
 					clineTaskSessionService.getSummary(normalizedInput.taskId),
 				);
-				const fromCheckpoint = summary?.previousTurnCheckpoint;
-				const toCheckpoint = summary?.latestTurnCheckpoint;
-				if (!toCheckpoint) {
+				if (!summary) {
 					return await createEmptyWorkspaceChangesResponse(taskCwd);
 				}
-				if (summary?.state === "running" || !fromCheckpoint) {
-					return await getWorkspaceChangesFromRef({
-						cwd: taskCwd,
-						fromRef: toCheckpoint.commit,
-					});
+				const lastTurnChanges = await loadLastTurnWorkspaceChanges(taskCwd, summary);
+				if (!lastTurnChanges) {
+					return await createEmptyWorkspaceChangesResponse(taskCwd);
 				}
-				return await getWorkspaceChangesBetweenRefs({
-					cwd: taskCwd,
-					fromRef: fromCheckpoint.commit,
-					toRef: toCheckpoint.commit,
-				});
+				return lastTurnChanges;
 			}
 			return await getWorkspaceChanges(taskCwd);
 		},

@@ -121,7 +121,7 @@ describe("createWorkspaceApi loadChanges", () => {
 		expect(workspaceChangesMocks.getWorkspaceChangesFromRef).not.toHaveBeenCalled();
 	});
 
-	it("tracks the current turn from the latest checkpoint while running", async () => {
+	it("shows the completed turn diff whenever both checkpoints are available", async () => {
 		const terminalManager = {
 			getSummary: vi.fn(() =>
 				createSummary({
@@ -138,6 +138,50 @@ describe("createWorkspaceApi loadChanges", () => {
 						commit: "1111111",
 						createdAt: 1,
 					},
+				}),
+			),
+		};
+
+		const api = createWorkspaceApi({
+			ensureTerminalManagerForWorkspace: vi.fn(async () => terminalManager as never),
+			getScopedClineTaskSessionService: vi.fn(async () => ({ getSummary: vi.fn(() => null) }) as never),
+			broadcastRuntimeWorkspaceStateUpdated: vi.fn(),
+			broadcastRuntimeProjectsUpdated: vi.fn(),
+			buildWorkspaceStateSnapshot: vi.fn(),
+		});
+
+		await api.loadChanges(
+			{
+				workspaceId: "workspace-1",
+				workspacePath: "/tmp/repo",
+			},
+			{
+				taskId: "task-1",
+				baseRef: "main",
+				mode: "last_turn",
+			},
+		);
+
+		expect(workspaceChangesMocks.getWorkspaceChangesBetweenRefs).toHaveBeenCalledWith({
+			cwd: "/tmp/worktree",
+			fromRef: "1111111",
+			toRef: "2222222",
+		});
+		expect(workspaceChangesMocks.getWorkspaceChangesFromRef).not.toHaveBeenCalled();
+	});
+
+	it("falls back to the working copy from the latest checkpoint when no previous checkpoint exists", async () => {
+		const terminalManager = {
+			getSummary: vi.fn(() =>
+				createSummary({
+					state: "running",
+					latestTurnCheckpoint: {
+						turn: 2,
+						ref: "refs/kanban/checkpoints/task-1/turn/2",
+						commit: "2222222",
+						createdAt: 2,
+					},
+					previousTurnCheckpoint: null,
 				}),
 			),
 		};
